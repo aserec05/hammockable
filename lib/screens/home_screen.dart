@@ -11,6 +11,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../widgets/spot_modal.dart';
 import '../utils/navigations.dart';
 import '../widgets/login_button.dart';
+import '../screens/liked_spots_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -241,7 +242,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       currentUser: currentUser,
       onSignOut: _signOut,
       onProfileTap: () => _showComingSoon(context, 'Profil'),
-      onFavoritesTap: () => _showComingSoon(context, 'Favoris'),
+      onFavoritesTap: () => goToScreen(context, const LikedSpotsScreen()),
       onContributionsTap: () => _showComingSoon(context, 'Contributions'),
       onSettingsTap: () => _showComingSoon(context, 'Paramètres'),
       onShowOptions: () => _showProfileOptions(),

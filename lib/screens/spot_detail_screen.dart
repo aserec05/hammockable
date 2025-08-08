@@ -6,12 +6,148 @@ import '../widgets/login_button.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../widgets/community_reviews.dart';
 
-
-class SpotDetailScreen extends StatelessWidget {
+class SpotDetailScreen extends StatefulWidget {
   final SpotData spot;
-  final User? user = Supabase.instance.client.auth.currentUser;
 
-  SpotDetailScreen({super.key, required this.spot});
+  const SpotDetailScreen({super.key, required this.spot});
+
+  @override
+  State<SpotDetailScreen> createState() => _SpotDetailScreenState();
+}
+
+class _SpotDetailScreenState extends State<SpotDetailScreen> with SingleTickerProviderStateMixin {
+  final User? user = Supabase.instance.client.auth.currentUser;
+  bool isLiked = false;
+  bool isLoading = false;
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // Configuration de l'animation
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.2,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.elasticOut,
+    ));
+
+    // Vérifier si l'utilisateur a déjà liké
+    _checkIfLiked();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _checkIfLiked() async {
+    if (user == null) return;
+    
+    try {
+      final response = await Supabase.instance.client
+          .from('likes')
+          .select()
+          .eq('user_id', user!.id)
+          .eq('spot_id', widget.spot.id)
+          .maybeSingle();
+      
+      setState(() {
+        isLiked = response != null;
+      });
+    } catch (e) {
+      print('Erreur lors de la vérification du like: $e');
+    }
+  }
+
+  Future<void> _toggleLike() async {
+    if (user == null) {
+      // Afficher un message pour se connecter
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Connecte-toi pour liker ce spot !'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (isLoading) return;
+
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      if (isLiked) {
+        // Supprimer le like
+        await Supabase.instance.client
+            .from('likes')
+            .delete()
+            .eq('user_id', user!.id)
+            .eq('spot_id', widget.spot.id);
+        
+        setState(() {
+          isLiked = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Like retiré !'),
+            backgroundColor: Colors.grey,
+            duration: Duration(seconds: 1),
+          ),
+        );
+      } else {
+        // Ajouter le like
+        await Supabase.instance.client
+            .from('likes')
+            .insert({
+              'user_id': user!.id,
+              'spot_id': widget.spot.id,
+              'created_at': DateTime.now().toIso8601String(),
+            });
+        
+        setState(() {
+          isLiked = true;
+        });
+        
+        // Animation du cœur
+        _animationController.forward().then((_) {
+          _animationController.reverse();
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Spot ajouté aux favoris ! ❤️'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Erreur lors du toggle like: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,9 +160,9 @@ class SpotDetailScreen extends StatelessWidget {
             pinned: true,
             backgroundColor: const Color(0xFF2D5016),
             flexibleSpace: FlexibleSpaceBar(
-              background: spot.photoUrl != null && spot.photoUrl!.isNotEmpty
+              background: widget.spot.photoUrl != null && widget.spot.photoUrl!.isNotEmpty
                   ? CachedNetworkImage(
-                      imageUrl: spot.photoUrl!,
+                      imageUrl: widget.spot.photoUrl!,
                       fit: BoxFit.cover,
                       placeholder: (context, url) => Container(
                         color: Colors.grey[200],
@@ -60,10 +196,28 @@ class SpotDetailScreen extends StatelessWidget {
                   color: Colors.black.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: IconButton(
-                  icon: const Icon(Icons.favorite_border, color: Colors.white),
-                  onPressed: () {
-                    // Action de favoris
+                child: AnimatedBuilder(
+                  animation: _scaleAnimation,
+                  builder: (context, child) {
+                    return Transform.scale(
+                      scale: _scaleAnimation.value,
+                      child: IconButton(
+                        icon: isLoading 
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Icon(
+                              isLiked ? Icons.favorite : Icons.favorite_border,
+                              color: isLiked ? Colors.red : Colors.white,
+                            ),
+                        onPressed: isLoading ? null : _toggleLike,
+                      ),
+                    );
                   },
                 ),
               ),
@@ -79,7 +233,7 @@ class SpotDetailScreen extends StatelessWidget {
                 children: [
                   // Titre et infos principales
                   Text(
-                    spot.title,
+                    widget.spot.title,
                     style: const TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
@@ -91,7 +245,7 @@ class SpotDetailScreen extends StatelessWidget {
                   // Métadonnées
                   Row(
                     children: [
-                      if (spot.rating != null) ...[
+                      if (widget.spot.rating != null) ...[
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
@@ -104,7 +258,7 @@ class SpotDetailScreen extends StatelessWidget {
                               const Icon(Icons.star, color: Colors.amber, size: 16),
                               const SizedBox(width: 4),
                               Text(
-                                spot.rating!.toStringAsFixed(1),
+                                widget.spot.rating!.toStringAsFixed(1),
                                 style: const TextStyle(fontWeight: FontWeight.w600),
                               ),
                             ],
@@ -112,7 +266,7 @@ class SpotDetailScreen extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                       ],
-                      if (spot.category != null)
+                      if (widget.spot.category != null)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
@@ -120,7 +274,7 @@ class SpotDetailScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
-                            spot.category!,
+                            widget.spot.category!,
                             style: const TextStyle(
                               color: Color(0xFF2D5016),
                               fontWeight: FontWeight.w600,
@@ -142,7 +296,7 @@ class SpotDetailScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    spot.description,
+                    widget.spot.description,
                     style: TextStyle(
                       color: Colors.grey[700],
                       fontSize: 16,
@@ -152,7 +306,7 @@ class SpotDetailScreen extends StatelessWidget {
                   const SizedBox(height: 24),
                   
                   // Équipements si disponibles
-                  if (spot.amenities != null && spot.amenities!.isNotEmpty) ...[
+                  if (widget.spot.amenities != null && widget.spot.amenities!.isNotEmpty) ...[
                     const Text(
                       'Équipements',
                       style: TextStyle(
@@ -165,7 +319,7 @@ class SpotDetailScreen extends StatelessWidget {
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: spot.amenities!.map((amenity) => Container(
+                      children: widget.spot.amenities!.map((amenity) => Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
                           color: Colors.grey[100],
@@ -191,39 +345,39 @@ class SpotDetailScreen extends StatelessWidget {
                       ),
                     ),
                     
-SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-if (user!=null) 
-  RatingCommentWidget(spotId: spot.id)
-else 
-  Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: const Color.fromARGB(207, 182, 241, 158),
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Connecte-toi pour laisser un commentaire et rejoindre la communauté.',
-          style: TextStyle(
-            color: Colors.black87,
-            fontSize: 16,
-          ),
-        ),
-        const SizedBox(height: 12),
-        LoginButton(),
-        const SizedBox(height: 12),
-      ],
-    ),
-  ),
-  const SizedBox(height: 32),
+                  if (user != null) 
+                    RatingCommentWidget(spotId: widget.spot.id)
+                  else 
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color.fromARGB(207, 182, 241, 158),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Connecte-toi pour laisser un commentaire et rejoindre la communauté.',
+                            style: TextStyle(
+                              color: Colors.black87,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          LoginButton(),
+                          const SizedBox(height: 12),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 32),
 
-// 3. Ajoute la nouvelle section des avis communautaires :
-CommunityReviewsWidget(spotId: spot.id),
+                  // Avis communautaires
+                  CommunityReviewsWidget(spotId: widget.spot.id),
 
-const SizedBox(height: 24),
+                  const SizedBox(height: 24),
                   // Position
                   const Text(
                     'Localisation',
@@ -235,7 +389,7 @@ const SizedBox(height: 24),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Latitude: ${spot.lat.toStringAsFixed(6)}\nLongitude: ${spot.lon.toStringAsFixed(6)}',
+                    'Latitude: ${widget.spot.lat.toStringAsFixed(6)}\nLongitude: ${widget.spot.lon.toStringAsFixed(6)}',
                     style: TextStyle(
                       color: Colors.grey[700],
                       fontSize: 14,
