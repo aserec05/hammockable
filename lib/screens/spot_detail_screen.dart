@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../widgets/login_button.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../widgets/community_reviews.dart';
 
 
 class SpotDetailScreen extends StatelessWidget {
@@ -217,6 +218,12 @@ else
       ],
     ),
   ),
+  const SizedBox(height: 32),
+
+// 3. Ajoute la nouvelle section des avis communautaires :
+CommunityReviewsWidget(spotId: spot.id),
+
+const SizedBox(height: 24),
                   // Position
                   const Text(
                     'Localisation',
