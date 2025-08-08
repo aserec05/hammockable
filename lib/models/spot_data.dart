@@ -1,3 +1,5 @@
+
+
 class SpotData {
   final String id;
   final String title;

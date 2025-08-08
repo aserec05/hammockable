@@ -89,6 +89,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             lat: spot['lat'] as double,
             lon: spot['long'] as double,
             photoUrl: spot['photo_url'] as String,
+            rating: spot['average_rating'] as double?,
             
           );
           loadedSpots.add(spotData);
