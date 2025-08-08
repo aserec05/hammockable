@@ -1,11 +1,16 @@
 import '../models/spot_data.dart';
+import '../widgets/rating_comment.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../widgets/login_button.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 
 class SpotDetailScreen extends StatelessWidget {
   final SpotData spot;
+  final User? user = Supabase.instance.client.auth.currentUser;
 
-  const SpotDetailScreen({super.key, required this.spot});
+  SpotDetailScreen({super.key, required this.spot});
 
   @override
   Widget build(BuildContext context) {
@@ -176,7 +181,42 @@ class SpotDetailScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                   ],
-                  
+                  const Text(
+                      'Laisser un avis',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    
+SizedBox(height: 12),
+
+if (user!=null) 
+  RatingCommentWidget(spotId: spot.id)
+else 
+  Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: const Color.fromARGB(207, 182, 241, 158),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Connecte-toi pour laisser un commentaire et rejoindre la communauté.',
+          style: TextStyle(
+            color: Colors.black87,
+            fontSize: 16,
+          ),
+        ),
+        const SizedBox(height: 12),
+        LoginButton(),
+        const SizedBox(height: 12),
+      ],
+    ),
+  ),
                   // Position
                   const Text(
                     'Localisation',

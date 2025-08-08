@@ -9,6 +9,8 @@ import '../widgets/user_avatar.dart';
 import '../widgets/profile_option.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../widgets/spot_modal.dart';
+import '../utils/navigations.dart';
+import '../widgets/login_button.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -226,22 +228,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _goToLoginScreen() {
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(1.0, 0.0),
-              end: Offset.zero,
-            ).animate(animation),
-            child: child,
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 300),
-      ),
-    );
+    goToLoginScreen(context);
   }
 
   void _showProfileOptions() {
@@ -452,26 +439,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ),
           ],
         ),
-        child: ElevatedButton.icon(
-          onPressed: _goToLoginScreen,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.white,
-            foregroundColor: const Color(0xFF2D5016),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            elevation: 0,
-          ),
-          icon: const Icon(Icons.person_outline, size: 18),
-          label: const Text(
-            'Se connecter',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
+        child: LoginButton()
       );
     }
   }
