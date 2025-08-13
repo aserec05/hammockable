@@ -426,7 +426,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               ),
             ],
           ),
-          child: UserAvatar(avatarUrl: currentUser?.userMetadata?['avatar_url']),
+          child: UserAvatar(user: currentUser),
       ));
     } else {
       // Utilisateur non connecté - afficher le bouton de connexion

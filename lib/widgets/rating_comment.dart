@@ -175,7 +175,7 @@ class _StatefulRatingCommentWidgetState extends State<RatingCommentWidget> {
           const SizedBox(height: 12),
           Row(
             children: [
-              UserAvatar(avatarUrl: currentUser?.userMetadata?['avatar_url']),
+              UserAvatar(user: currentUser),
               const SizedBox(width: 8),
               Row(
                 children: List.generate(5, (index) {
@@ -232,7 +232,7 @@ class _StatefulRatingCommentWidgetState extends State<RatingCommentWidget> {
       children: [
         Row(
           children: [
-            UserAvatar(avatarUrl: currentUser?.userMetadata?['avatar_url']),
+            UserAvatar(user: currentUser),
             const SizedBox(width: 8),
             Row(
               children: List.generate(5, (index) {

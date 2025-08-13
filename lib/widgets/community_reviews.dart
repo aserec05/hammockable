@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'user_avatar.dart';
+import '../models/user_profile.dart';
 
 class CommunityReviewsWidget extends StatefulWidget {
   final String spotId;
@@ -145,117 +146,113 @@ class _CommunityReviewsWidgetState extends State<CommunityReviewsWidget> {
     );
   }
 
-  Widget _buildReviewCard(Map<String, dynamic> review) {
-    final mark = review['mark'] as int;
-    final comment = review['comment'] as String?;
-    final createdAt = DateTime.parse(review['created_at']);
-    final userId = review['user_id'] as String;
-    
-    // Récupération des infos utilisateur depuis la vue
-    final userDisplayName = review['user_display_name'] as String?;
-    final avatarUrl = review['user_avatar_url'] as String?;
-    final email = review['email'] as String?;
-    
-    // Nom d'affichage avec fallback
-    final displayName = userDisplayName?.isNotEmpty == true 
-        ? userDisplayName! 
-        : email?.split('@').first ?? 'Voyageur ${userId.substring(0, 6).toUpperCase()}';
-    
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // En-tête avec avatar et infos utilisateur
-          Row(
-            children: [
-              UserAvatar(avatarUrl: avatarUrl), // Avatar réel de l'utilisateur
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+  // Dans le fichier CommunityReviewsWidget, modifier la méthode _buildReviewCard :
+
+// Dans CommunityReviewsWidget, maintenant vous pouvez simplement faire :
+
+Widget _buildReviewCard(Map<String, dynamic> review) {
+  final mark = review['mark'] as int;
+  final comment = review['comment'] as String?;
+  final createdAt = DateTime.parse(review['created_at']);
+  final userId = review['user_id'] as String;
+  
+  // User info from the view
+  final userDisplayName = review['user_display_name'] as String?;
+  final avatarUrl = review['user_avatar_url'] as String?;
+  final email = review['email'] as String?;
+  
+  final userProfile = UserProfile(
+    id: userId,
+    displayName: userDisplayName,
+    avatarUrl: avatarUrl,
+    email: email,
+  );
+  
+  final displayName = userDisplayName?.isNotEmpty == true
+      ? userDisplayName!
+      : email?.split('@').first ?? 'Voyageur ${userId.substring(0, 6).toUpperCase()}';
+  
+  return Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.grey[200]!),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 4,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            UserAvatar(userProfile: userProfile),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    displayName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Row(
+                        children: List.generate(5, (index) {
+                          return Icon(
+                            Icons.star,
+                            color: index < mark ? Colors.amber : Colors.grey[300],
+                            size: 18,
+                          );
+                        }),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '$mark/5',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        _formatDate(createdAt),
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (comment != null && comment.trim().isNotEmpty) ...[
+                    const SizedBox(height: 8),
                     Text(
-                      displayName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                        color: Colors.black87,
+                      comment,
+                      style: TextStyle(
+                        color: Colors.grey[800],
+                        fontSize: 14,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        // Étoiles de notation
-                        Row(
-                          children: List.generate(5, (index) {
-                            return Icon(
-                              Icons.star,
-                              color: index < mark ? Colors.amber : Colors.grey[300],
-                              size: 18,
-                            );
-                          }),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '$mark/5',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const Spacer(),
-                        // Date
-                        Text(
-                          _formatDate(createdAt),
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
                   ],
-                ),
-              ),
-            ],
-          ),
-          
-          // Commentaire si présent
-          if (comment != null && comment.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                comment,
-                style: TextStyle(
-                  color: Colors.grey[700],
-                  fontSize: 15,
-                  height: 1.4,
-                ),
+                ],
               ),
             ),
           ],
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 }

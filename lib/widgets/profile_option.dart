@@ -58,7 +58,7 @@ class ProfileOptions extends StatelessWidget {
                 // Photo et nom de l'utilisateur
                 if (currentUser != null) ...[
                   Center(
-                    child: UserAvatar(avatarUrl: currentUser?.userMetadata?['avatar_url']),
+                    child: UserAvatar(user: currentUser),
                   ),
                   const SizedBox(height: 12),
                   Center(
