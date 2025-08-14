@@ -1,10 +1,10 @@
 # hammockable
 
-A new Flutter project.
+Flutter mobile app that helps users discover hammock-friendly spots through community sharing, AI-based satellite analysis, and more. (Personnal project)
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+
 
 A few resources to get you started if this is your first Flutter project:
 
