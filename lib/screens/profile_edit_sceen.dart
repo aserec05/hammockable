@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_profile.dart';
 import '../widgets/user_avatar.dart';
 import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'dart:html' as html; // Import pour le web
+import 'dart:typed_data';
 
 class ProfileEditScreen extends StatefulWidget {
   final UserProfile profile;
@@ -32,6 +36,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
   bool _isLoading = false;
   bool _hasChanges = false;
   String? _selectedAvatarPath;
+  Uint8List? _selectedAvatarBytes; // Pour le web
 
   @override
   void initState() {
@@ -128,7 +133,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
       };
 
       // Si une nouvelle photo a été sélectionnée, l'uploader d'abord
-      if (_selectedAvatarPath != null) {
+      if (_selectedAvatarBytes != null || _selectedAvatarPath != null) {
         final avatarUrl = await _uploadAvatar();
         if (avatarUrl != null) {
           updateData['avatar_url'] = avatarUrl;
@@ -191,17 +196,33 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
 
   Future<String?> _uploadAvatar() async {
     try {
-      if (_selectedAvatarPath == null) return null;
+      Uint8List bytes;
+      
+      if (kIsWeb) {
+        // Sur le web, utiliser les bytes
+        if (_selectedAvatarBytes == null) return null;
+        bytes = _selectedAvatarBytes!;
+      } else {
+        // Sur mobile, lire le fichier
+        if (_selectedAvatarPath == null) return null;
+        bytes = await File(_selectedAvatarPath!).readAsBytes();
+      }
+      
+      // Architecture spécifique : {user_id}.jpg
+      final filePath = 'public/${widget.profile.id}.jpg';
 
-      final file = File(_selectedAvatarPath!);
-      final fileExt = _selectedAvatarPath!.split('.').last;
-      final fileName = '${widget.profile.id}_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
-      final filePath = 'avatars/$fileName';
-
+      // Upload vers storage.avatars
       await supabase.storage
           .from('avatars')
-          .upload(filePath, file);
+          .uploadBinary(
+            filePath, 
+            bytes,
+            fileOptions: const FileOptions(
+              upsert: true,
+            ),
+          );
 
+      // URL publique
       final publicUrl = supabase.storage
           .from('avatars')
           .getPublicUrl(filePath);
@@ -213,22 +234,103 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
     }
   }
 
+  // Méthode pour le web utilisant input file HTML
+  Future<void> _selectAvatarWeb() async {
+    try {
+      final html.FileUploadInputElement uploadInput = html.FileUploadInputElement();
+      uploadInput.accept = 'image/*';
+      uploadInput.click();
+
+      uploadInput.onChange.listen((e) async {
+        final files = uploadInput.files;
+        if (files!.isEmpty) return;
+
+        final reader = html.FileReader();
+        reader.readAsArrayBuffer(files[0]);
+        reader.onLoadEnd.listen((e) {
+          setState(() {
+            _selectedAvatarBytes = reader.result as Uint8List;
+            _hasChanges = true;
+          });
+        });
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur: $e')),
+      );
+    }
+  }
+
+  // Méthode pour mobile avec image_picker
+  Future<void> _selectAvatarMobile() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      
+      // Afficher un dialog de choix
+      final source = await showDialog<ImageSource>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Choisir une photo'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Galerie'),
+                onTap: () => Navigator.pop(context, ImageSource.gallery),
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Appareil photo'),
+                onTap: () => Navigator.pop(context, ImageSource.camera),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (source != null) {
+        final XFile? image = await picker.pickImage(
+          source: source,
+          maxWidth: 512,
+          maxHeight: 512,
+          imageQuality: 85,
+        );
+
+        if (image != null) {
+          setState(() {
+            _selectedAvatarPath = image.path;
+            _hasChanges = true;
+          });
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur: $e')),
+      );
+    }
+  }
+
+  // Méthode unifiée pour sélectionner l'avatar
   Future<void> _selectAvatar() async {
-    // Ici tu peux implémenter la sélection d'image
-    // Pour l'instant, on montre juste que c'est coming soon
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('🚀 Changement de photo bientôt disponible !'),
-        backgroundColor: Color(0xFF2D5016),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    if (kIsWeb) {
+      await _selectAvatarWeb();
+    } else {
+      await _selectAvatarMobile();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: _onWillPop,
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (didPop) return;
+        final shouldPop = await _onWillPop();
+        if (shouldPop && context.mounted) {
+          Navigator.pop(context);
+        }
+      },
       child: Scaffold(
         body: Container(
           decoration: const BoxDecoration(
@@ -388,11 +490,21 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
                     ),
                   ],
                 ),
-                child: UserAvatar(
-                  userId: widget.profile.id,
-                  radius: 50,
-                  enableClick: false,
-                ),
+                child: _selectedAvatarBytes != null && kIsWeb
+                    ? CircleAvatar(
+                        radius: 50,
+                        backgroundImage: MemoryImage(_selectedAvatarBytes!),
+                      )
+                    : _selectedAvatarPath != null && !kIsWeb
+                        ? CircleAvatar(
+                            radius: 50,
+                            backgroundImage: FileImage(File(_selectedAvatarPath!)),
+                          )
+                        : UserAvatar(
+                            userId: widget.profile.id,
+                            radius: 50,
+                            enableClick: false,
+                          ),
               ),
               Positioned(
                 bottom: 0,
@@ -426,7 +538,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen>
           ),
           const SizedBox(height: 16),
           Text(
-            'Touchez l\'icône pour changer votre photo',
+            kIsWeb 
+                ? 'Cliquez sur l\'icône pour choisir une photo'
+                : 'Touchez l\'icône pour changer votre photo',
             style: TextStyle(
               color: Colors.grey[600],
               fontSize: 14,

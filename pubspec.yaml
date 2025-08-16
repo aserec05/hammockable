@@ -36,6 +36,9 @@ dependencies:
   flutter_dotenv: ^5.1.0     # Pour gérer tes clés API en .env
   google_sign_in: ^6.1.5
   cached_network_image: ^3.3.1 # Check latest version
+  image_picker: ^1.0.4
+  # Pour la compression (optionnel mais recommandé)
+  flutter_image_compress: ^2.0.4
 
 dev_dependencies:
   flutter_test:
