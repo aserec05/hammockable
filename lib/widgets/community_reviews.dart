@@ -165,7 +165,6 @@ Widget _buildReviewCard(Map<String, dynamic> review) {
     id: userId,
     displayName: userDisplayName,
     avatarUrl: avatarUrl,
-    email: email,
   );
   
   final displayName = userDisplayName?.isNotEmpty == true

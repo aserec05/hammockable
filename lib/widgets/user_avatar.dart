@@ -5,13 +5,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 // ignore: depend_on_referenced_packages
 import 'package:http/http.dart' as http;
 import '../models/user_profile.dart';
+import '../screens/profile_screen.dart';
+import '../utils/navigations.dart';
 
 class UserAvatar extends StatelessWidget {
   final User? user;
   final UserProfile? userProfile;
   final String? userId;
   final double radius;
-  final bool allowUpload; // Nouveau paramètre pour contrôler l'upload
+  final bool allowUpload;
+  final bool enableClick;
 
   const UserAvatar({
     super.key,
@@ -19,7 +22,8 @@ class UserAvatar extends StatelessWidget {
     this.userProfile,
     this.userId,
     this.radius = 30.0,
-    this.allowUpload = true, // Par défaut, on permet l'upload
+    this.allowUpload = true,
+    this.enableClick = true,
   }) : assert(
           user != null || userProfile != null || userId != null,
           'Au moins un des paramètres user, userProfile ou userId doit être fourni',
@@ -27,33 +31,29 @@ class UserAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Widget avatarWidget;
+
     if (user != null) {
-      return FutureBuilder<String?>(
+      avatarWidget = FutureBuilder<String?>(
         future: _handleAvatarUrl(
           user!.id,
           user!.userMetadata?['avatar_url'] as String?,
         ),
         builder: _avatarBuilder(
           displayName: user!.userMetadata?['display_name'] as String?,
-          email: user!.email,
           fallbackId: user!.id,
         ),
       );
-    }
-
-    if (userProfile != null) {
-      return FutureBuilder<String?>(
+    } else if (userProfile != null) {
+      avatarWidget = FutureBuilder<String?>(
         future: _handleAvatarUrl(userProfile!.id, userProfile!.avatarUrl),
         builder: _avatarBuilder(
           displayName: userProfile!.displayName,
-          email: userProfile!.email,
           fallbackId: userProfile!.id,
         ),
       );
-    }
-
-    if (userId != null) {
-      return FutureBuilder<UserProfile?>(
+    } else if (userId != null) {
+      avatarWidget = FutureBuilder<UserProfile?>(
         future: _loadUserProfile(userId!),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -66,12 +66,46 @@ class UserAvatar extends StatelessWidget {
             userProfile: snapshot.data!, 
             radius: radius,
             allowUpload: allowUpload,
+            enableClick: enableClick,
           );
         },
       );
+    } else {
+      avatarWidget = _buildDefaultAvatar('unknown');
     }
 
-    return _buildDefaultAvatar('unknown');
+    // Emballer dans GestureDetector si le clic est activé
+    if (enableClick) {
+      return GestureDetector(
+        onTap: () => _navigateToProfile(context),
+        child: avatarWidget,
+      );
+    }
+
+    return avatarWidget;
+  }
+
+  /// Navigation vers l'écran de profil
+  void _navigateToProfile(BuildContext context) {
+    String targetUserId;
+    
+    // Déterminer l'ID utilisateur à afficher
+    if (user != null) {
+      targetUserId = user!.id;
+    } else if (userProfile != null) {
+      targetUserId = userProfile!.id;
+    } else if (userId != null) {
+      targetUserId = userId!;
+    } else {
+      // Ne devrait pas arriver grâce à l'assert, mais on gère le cas
+      print('Erreur: Aucun userId disponible pour la navigation');
+      return;
+    }
+
+    goToScreen(
+      context,
+      ProfileScreen(userId: targetUserId),
+    );
   }
 
   /// Charge le profil depuis Supabase
@@ -79,7 +113,7 @@ class UserAvatar extends StatelessWidget {
     try {
       final response = await Supabase.instance.client
           .from('profiles')
-          .select('id, display_name, avatar_url, email')
+          .select('id, display_name, avatar_url, bio, created_at, updated_at')
           .eq('id', userId)
           .single();
       return UserProfile.fromMap(response);
@@ -187,7 +221,6 @@ class UserAvatar extends StatelessWidget {
   /// Builder générique pour éviter la répétition de code
   AsyncWidgetBuilder<String?> _avatarBuilder({
     required String? displayName,
-    required String? email,
     required String fallbackId,
   }) {
     return (context, snapshot) {
@@ -197,7 +230,6 @@ class UserAvatar extends StatelessWidget {
       if (!snapshot.hasData || snapshot.data!.isEmpty) {
         return _buildInitialsAvatar(
           displayName: displayName,
-          email: email,
           fallbackId: fallbackId,
         );
       }
@@ -224,10 +256,9 @@ class UserAvatar extends StatelessWidget {
   /// Affiche un avatar avec initiales
   Widget _buildInitialsAvatar({
     String? displayName,
-    String? email,
     required String fallbackId,
   }) {
-    String initials = _getInitials(displayName, email, fallbackId);
+    String initials = _getInitials(displayName, fallbackId);
     
     return CircleAvatar(
       radius: radius,
@@ -244,7 +275,7 @@ class UserAvatar extends StatelessWidget {
   }
 
   /// Extrait les initiales
-  String _getInitials(String? displayName, String? email, String fallbackId) {
+  String _getInitials(String? displayName, String fallbackId) {
     if (displayName != null && displayName.isNotEmpty) {
       final parts = displayName.trim().split(' ');
       if (parts.length >= 2) {
@@ -253,10 +284,7 @@ class UserAvatar extends StatelessWidget {
       return parts[0][0].toUpperCase();
     }
     
-    if (email != null && email.isNotEmpty) {
-      return email[0].toUpperCase();
-    }
-    
+    // Utiliser le fallback ID
     return fallbackId.length >= 2 
         ? fallbackId.substring(0, 2).toUpperCase()
         : fallbackId[0].toUpperCase();
