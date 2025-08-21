@@ -336,6 +336,38 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> with SingleTickerPr
                     ),
                     const SizedBox(height: 24),
                   ],
+                   // Dans SpotDetailScreen, après les équipements
+if (widget.spot.labels != null && widget.spot.labels!.isNotEmpty) ...[
+  const SizedBox(height: 20),
+  const Text(
+    'Caractéristiques',
+    style: TextStyle(
+      fontSize: 20,
+      fontWeight: FontWeight.bold,
+      color: Colors.black87,
+    ),
+  ),
+  const SizedBox(height: 12),
+  Wrap(
+    spacing: 8,
+    runSpacing: 8,
+    children: widget.spot.labels!.map((label) {
+      return Chip(
+        avatar: Icon(
+          label['icon'] != null 
+              ? IconData(label['icon'], fontFamily: 'MaterialIcons') 
+              : Icons.label,
+          size: 18,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        label: Text(label['name'] ?? 'Inconnu'),
+        backgroundColor: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.2),
+      );
+    }).toList(),
+  ),
+  const SizedBox(height: 24),
+],
+                 
                   const Text(
                       'Laisser un avis',
                       style: TextStyle(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../constants/label_definitions.dart';
 import '../models/spot_data.dart';
 import '../screens/spot_detail_screen.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -71,65 +72,147 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   // Stream en temps réel pour les spots
-  Stream<List<SpotData>> _spotsStream() {
-    return supabase
-        .from('spots')
-        .stream(primaryKey: ['id'])
-        .eq('is_public', true)
-        .asyncMap((spots) async {
-          List<SpotData> spotsWithPhotos = [];
-          
-          for (var spot in spots) {
-            try {
-              // Récupérer la première photo pour ce spot
-              final photos = await supabase
-                  .from('photos')
-                  .select('url')
-                  .eq('spot_id', spot['id'])
-                  .limit(1);
-              
-              // Récupérer les notes pour calculer la moyenne
-              final ratings = await supabase
-                  .from('ratings')
-                  .select('mark')
-                  .eq('spot_id', spot['id']);
-              
-              double averageRating = 0.0;
-              if (ratings.isNotEmpty) {
-                final marks = ratings.map<double>((r) => (r['mark'] as num).toDouble()).toList();
-                averageRating = marks.reduce((a, b) => a + b) / marks.length;
-              }
-              
-              final spotData = SpotData(
-                id: spot['id'] as String,
-                title: spot['title'] as String,
-                description: spot['description'] as String? ?? "Description non disponible",
-                lat: spot['lat'] as double,
-                lon: spot['long'] as double,
-                photoUrl: photos.isNotEmpty ? photos.first['url'] as String : null,
-                rating: double.parse(averageRating.toStringAsFixed(2)),
-              );
-              
-              spotsWithPhotos.add(spotData);
-            } catch (e) {
-              print('Erreur chargement spot ${spot['id']}: $e');
-              // Ajouter le spot sans photo/rating si erreur
-              final spotData = SpotData(
-                id: spot['id'] as String,
-                title: spot['title'] as String,
-                description: spot['description'] as String? ?? "Description non disponible",
-                lat: spot['lat'] as double,
-                lon: spot['long'] as double,
-                photoUrl: null,
-                rating: 0.0,
-              );
-              spotsWithPhotos.add(spotData);
+  // Stream en temps réel pour les spots avec labels
+
+
+Stream<List<SpotData>> _spotsStream() {
+  return supabase
+      .from('spots')
+      .stream(primaryKey: ['id'])
+      .eq('is_public', true)
+      .asyncMap((spots) async {
+        List<SpotData> spotsWithData = [];
+        
+        for (var spot in spots) {
+          try {
+            // Récupérer la première photo pour ce spot
+            final photos = await supabase
+                .from('photos')
+                .select('url')
+                .eq('spot_id', spot['id'])
+                .limit(1);
+            
+            // Récupérer les notes pour calculer la moyenne
+            final ratings = await supabase
+                .from('ratings')
+                .select('mark')
+                .eq('spot_id', spot['id']);
+            
+            // Récupérer les labels associés à ce spot
+            final labelsResponse = await supabase
+                .from('labels')
+                .select('labels')
+                .eq('spot_id', spot['id']);
+            
+            double averageRating = 0.0;
+            if (ratings.isNotEmpty) {
+              final marks = ratings.map<double>((r) => (r['mark'] as num).toDouble()).toList();
+              averageRating = marks.reduce((a, b) => a + b) / marks.length;
             }
+            
+            // Convertir les labels en format Map
+            List<Map<String, dynamic>> labels = [];
+            if (labelsResponse.isNotEmpty) {
+              for (var labelRow in labelsResponse) {
+                final labelText = labelRow['labels'] as String?;
+                if (labelText != null && labelText.isNotEmpty) {
+                  final labelNames = labelText.split(',');
+                  
+                  for (var labelName in labelNames) {
+                    final trimmedLabel = labelName.trim();
+                    if (trimmedLabel.isNotEmpty) {
+                      final labelData = allLabelsById[trimmedLabel.toLowerCase()];
+                      
+                      labels.add({
+                        'id': trimmedLabel.toLowerCase(),
+                        'name': labelData?.name ?? trimmedLabel,
+                        'icon': (labelData?.icon ?? Icons.label).codePoint,
+                        'color': (labelData?.color ?? Colors.grey).value,
+                      });
+                    }
+                  }
+                }
+              }
+            }
+            
+            final spotData = SpotData(
+              id: spot['id'] as String,
+              title: spot['title'] as String,
+              description: spot['description'] as String? ?? "Description non disponible",
+              lat: spot['lat'] as double,
+              lon: spot['long'] as double,
+              photoUrl: photos.isNotEmpty ? photos.first['url'] as String : null,
+              rating: double.parse(averageRating.toStringAsFixed(2)),
+              category: spot['category'] as String?,
+              amenities: spot['amenities'] != null 
+                  ? List<String>.from(spot['amenities'])
+                  : null,
+              labels: labels.isNotEmpty ? labels : null,
+            );
+            
+            spotsWithData.add(spotData);
+          } catch (e) {
+            print('Erreur chargement spot ${spot['id']}: $e');
+            
+            final spotData = SpotData(
+              id: spot['id'] as String,
+              title: spot['title'] as String,
+              description: spot['description'] as String? ?? "Description non disponible",
+              lat: spot['lat'] as double,
+              lon: spot['long'] as double,
+              photoUrl: null,
+              rating: 0.0,
+              category: spot['category'] as String?,
+              amenities: spot['amenities'] != null 
+                  ? List<String>.from(spot['amenities'])
+                  : null,
+              labels: null,
+            );
+            spotsWithData.add(spotData);
           }
-          
-          return spotsWithPhotos;
-        });
-  }
+        }
+        
+        return spotsWithData;
+      });
+}
+
+
+// Méthodes pour obtenir des icônes et couleurs par défaut basées sur le nom du label
+int _getDefaultIconForLabel(String labelName) {
+  final iconMap = {
+    'hamac': Icons.bed.codePoint,
+    'ombre': Icons.umbrella.codePoint,
+    'eau': Icons.water.codePoint,
+    'foret': Icons.park.codePoint,
+    'montagne': Icons.terrain.codePoint,
+    'plage': Icons.beach_access.codePoint,
+    'calme': Icons.volume_off.codePoint,
+    'parking': Icons.local_parking.codePoint,
+    'wc': Icons.wc.codePoint,
+    'restaurant': Icons.restaurant.codePoint,
+    // Ajoutez d'autres mappings selon vos besoins
+  };
+  
+  return iconMap[labelName.toLowerCase()] ?? Icons.label.codePoint;
+}
+
+int _getDefaultColorForLabel(String labelName) {
+  final colorMap = {
+    'hamac': Colors.green.value,
+    'ombre': Colors.blue.value,
+    'eau': Colors.blue.value,
+    'foret': Colors.green.value,
+    'montagne': Colors.grey.value,
+    'plage': Colors.yellow.value,
+    'calme': Colors.indigo.value,
+    'parking': Colors.grey.value,
+    'wc': Colors.brown.value,
+    'restaurant': Colors.orange.value,
+    // Ajoutez d'autres mappings selon vos besoins
+  };
+  
+  return colorMap[labelName.toLowerCase()] ?? Colors.grey.value;
+}
 
   List<Marker> _buildMarkers(List<SpotData> spots) {
     return spots.map((spotData) {

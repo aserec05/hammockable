@@ -1,5 +1,4 @@
-
-
+// models/spot_data.dart
 class SpotData {
   final String id;
   final String title;
@@ -7,11 +6,10 @@ class SpotData {
   final double lat;
   final double lon;
   final String? photoUrl;
-  final List<String>? additionalPhotos;
-  final String? category;
   final double? rating;
-  final String? difficulty;
+  final String? category;
   final List<String>? amenities;
+  final List<Map<String, dynamic>>? labels; // Ajout des labels
 
   SpotData({
     required this.id,
@@ -20,12 +18,28 @@ class SpotData {
     required this.lat,
     required this.lon,
     this.photoUrl,
-    this.additionalPhotos,
-    this.category,
     this.rating,
-    this.difficulty,
+    this.category,
     this.amenities,
+    this.labels,
   });
 
-  
+  factory SpotData.fromJson(Map<String, dynamic> json) {
+    return SpotData(
+      id: json['id'],
+      title: json['title'],
+      description: json['description'],
+      lat: json['lat'],
+      lon: json['lon'],
+      photoUrl: json['photo_url'],
+      rating: json['rating']?.toDouble(),
+      category: json['category'],
+      amenities: json['amenities'] != null 
+          ? List<String>.from(json['amenities'])
+          : null,
+      labels: json['labels'] != null
+          ? List<Map<String, dynamic>>.from(json['labels'])
+          : null,
+    );
+  }
 }

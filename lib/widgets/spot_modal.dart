@@ -2,6 +2,8 @@ import '../models/spot_data.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
+import 'label_icon_widget.dart';
+
 class SpotModal extends StatelessWidget {
   final SpotData spot;
   final VoidCallback onViewDetails;
@@ -166,15 +168,13 @@ class SpotModal extends StatelessWidget {
                             ),
                             const SizedBox(width: 16),
                           ],
-                          if (spot.difficulty != null) ...[
-                            Icon(Icons.trending_up, color: Colors.orange, size: 16),
-                            const SizedBox(width: 4),
-                            Text(
-                              spot.difficulty!,
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontWeight: FontWeight.w500,
-                              ),
+                          // Dans SpotModal, après le rating et difficulté
+                          if (spot.labels != null && spot.labels!.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            LabelIconsWidget(
+                              labels: spot.labels,
+                              maxIcons: 4,
+                              iconSize: 14,
                             ),
                           ],
                         ],
