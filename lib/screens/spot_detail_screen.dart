@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../widgets/login_button.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../widgets/community_reviews.dart';
+import '../constants/label_definitions.dart';
 
 class SpotDetailScreen extends StatefulWidget {
   final SpotData spot;
@@ -210,7 +211,7 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> with SingleTickerPr
 
     return Stack(
       children: [
-        // PageView pour les photos
+        // PageView pour les photos avec effet de parallaxe
         SizedBox(
           height: 300,
           child: PageView.builder(
@@ -222,17 +223,45 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> with SingleTickerPr
             },
             itemCount: allPhotos.length,
             itemBuilder: (context, index) {
-              return CachedNetworkImage(
-                imageUrl: allPhotos[index],
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  color: Colors.grey[200],
-                  child: const Center(child: CircularProgressIndicator()),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  color: Colors.grey[200],
-                  child: const Icon(Icons.landscape, size: 100),
-                ),
+              return AnimatedBuilder(
+                animation: _pageController,
+                builder: (context, child) {
+                  // Calcul de l'effet de parallaxe/slide
+                  double value = 0.0;
+                  if (_pageController.position.haveDimensions) {
+                    value = index.toDouble() - (_pageController.page ?? 0);
+                    // Limite l'effet à [-1, 1] pour éviter des transformations extrêmes
+                    value = (value * 0.5).clamp(-1.0, 1.0);
+                  }
+                  
+                  return Transform.translate(
+                    offset: Offset(value * MediaQuery.of(context).size.width * 0.3, 0),
+                    child: Transform.scale(
+                      scale: 1.0 - (value.abs() * 0.1), // Léger effet de zoom
+                      child: Opacity(
+                        opacity: 1.0 - (value.abs() * 0.3), // Effet de fondu
+                        child: Container(
+                          margin: EdgeInsets.symmetric(horizontal: value.abs() * 10),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(value.abs() * 20),
+                            child: CachedNetworkImage(
+                              imageUrl: allPhotos[index],
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
+                                color: Colors.grey[200],
+                                child: const Center(child: CircularProgressIndicator()),
+                              ),
+                              errorWidget: (context, url, error) => Container(
+                                color: Colors.grey[200],
+                                child: const Icon(Icons.landscape, size: 100),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
               );
             },
           ),
@@ -240,7 +269,7 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> with SingleTickerPr
         
         // Indicateurs de pages (si plus d'une photo)
         if (allPhotos.length > 1) ...[
-          // Indicateurs en bas
+          // Indicateurs en bas avec animation
           Positioned(
             bottom: 16,
             left: 0,
@@ -248,93 +277,133 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> with SingleTickerPr
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: allPhotos.asMap().entries.map((entry) {
-                return Container(
-                  width: currentPhotoIndex == entry.key ? 12.0 : 8.0,
+                bool isActive = currentPhotoIndex == entry.key;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  width: isActive ? 20.0 : 8.0,
                   height: 8.0,
                   margin: const EdgeInsets.symmetric(horizontal: 3.0),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(4.0),
-                    color: currentPhotoIndex == entry.key 
-                        ? Colors.white 
-                        : Colors.white.withOpacity(0.4),
+                    color: isActive ? Colors.white : Colors.white.withOpacity(0.4),
+                    boxShadow: isActive ? [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.3),
+                        blurRadius: 4,
+                        spreadRadius: 1,
+                      ),
+                    ] : null,
                   ),
                 );
               }).toList(),
             ),
           ),
           
-          // Compteur en haut à droite
+          // Compteur en haut à droite avec animation
           Positioned(
             top: 16,
             right: 16,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.6),
-                borderRadius: BorderRadius.circular(12),
+                color: Colors.black.withOpacity(0.7),
+                borderRadius: BorderRadius.circular(15),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 4,
+                    spreadRadius: 1,
+                  ),
+                ],
               ),
               child: Text(
                 '${currentPhotoIndex + 1}/${allPhotos.length}',
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
           ),
           
-          // Flèches de navigation (optionnel)
+          // Flèches de navigation avec animations
           if (allPhotos.length > 1) ...[
-            // Flèche gauche
-            if (currentPhotoIndex > 0)
-              Positioned(
-                left: 16,
-                top: 0,
-                bottom: 0,
-                child: Center(
+            // Flèche gauche avec animation de slide
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              left: currentPhotoIndex > 0 ? 16 : -60,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 300),
+                  opacity: currentPhotoIndex > 0 ? 1.0 : 0.0,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(20),
+                      color: Colors.black.withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(25),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 8,
+                          spreadRadius: 1,
+                        ),
+                      ],
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-                      onPressed: () {
+                      icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+                      onPressed: currentPhotoIndex > 0 ? () {
                         _pageController.previousPage(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
+                          duration: const Duration(milliseconds: 400),
+                          curve: Curves.easeInOutCubic,
                         );
-                      },
+                      } : null,
                     ),
                   ),
                 ),
               ),
+            ),
             
-            // Flèche droite
-            if (currentPhotoIndex < allPhotos.length - 1)
-              Positioned(
-                right: 16,
-                top: 0,
-                bottom: 0,
-                child: Center(
+            // Flèche droite avec animation de slide
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              right: currentPhotoIndex < allPhotos.length - 1 ? 16 : -60,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 300),
+                  opacity: currentPhotoIndex < allPhotos.length - 1 ? 1.0 : 0.0,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(20),
+                      color: Colors.black.withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(25),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 8,
+                          spreadRadius: 1,
+                        ),
+                      ],
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.arrow_forward_ios, color: Colors.white),
-                      onPressed: () {
+                      icon: const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 20),
+                      onPressed: currentPhotoIndex < allPhotos.length - 1 ? () {
                         _pageController.nextPage(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
+                          duration: const Duration(milliseconds: 400),
+                          curve: Curves.easeInOutCubic,
                         );
-                      },
+                      } : null,
                     ),
                   ),
                 ),
               ),
+            ),
           ],
         ],
       ],
@@ -528,16 +597,46 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> with SingleTickerPr
                       spacing: 8,
                       runSpacing: 8,
                       children: widget.spot.labels!.map((label) {
-                        return Chip(
-                          avatar: Icon(
-                            label['icon'] != null 
-                                ? IconData(label['icon'], fontFamily: 'MaterialIcons') 
-                                : Icons.label,
-                            size: 18,
-                            color: Theme.of(context).colorScheme.primary,
+                        // Récupérer les données du label depuis les définitions centralisées
+                        final labelId = label['id'] as String?;
+                        final labelData = labelId != null ? allLabelsById[labelId.toLowerCase()] : null;
+                        
+                        final labelName = label['name'] ?? labelData?.name ?? 'Inconnu';
+                        final labelIcon = labelData?.icon ?? 
+                          (label['icon'] != null 
+                              ? IconData(label['icon'], fontFamily: 'MaterialIcons') 
+                              : Icons.label);
+                        final labelColor = labelData?.color ?? Colors.grey;
+                        
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: labelColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: labelColor.withOpacity(0.3),
+                              width: 1,
+                            ),
                           ),
-                          label: Text(label['name'] ?? 'Inconnu'),
-                          backgroundColor: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.2),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                labelIcon,
+                                size: 16,
+                                color: labelColor,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                labelName,
+                                style: TextStyle(
+                                  color: labelColor,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
                         );
                       }).toList(),
                     ),
