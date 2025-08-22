@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import 'label_icon_widget.dart';
-
 class SpotModal extends StatelessWidget {
   final SpotData spot;
   final VoidCallback onViewDetails;
@@ -153,10 +152,11 @@ class SpotModal extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       
-                      // Rating et difficulté
+                      // Rating, nombre d'avis et difficulté
                       Row(
                         children: [
-                          if (spot.rating != null) ...[
+                          // Afficher la note seulement s'il y a des avis
+                          if (spot.reviewCount! > 0) ...[
                             Icon(Icons.star, color: Colors.amber, size: 16),
                             const SizedBox(width: 4),
                             Text(
@@ -166,11 +166,31 @@ class SpotModal extends StatelessWidget {
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '(${spot.reviewCount})',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                          ] else ...[
+                            // Cas où il n'y a aucun avis
+                            Icon(Icons.star_outline, color: Colors.grey[400], size: 16),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Aucun avis',
+                              style: TextStyle(
+                                color: Colors.grey[500],
+                                fontSize: 12,
+                              ),
+                            ),
                             const SizedBox(width: 16),
                           ],
-                          // Dans SpotModal, après le rating et difficulté
+                          
+                          // Labels
                           if (spot.labels != null && spot.labels!.isNotEmpty) ...[
-                            const SizedBox(height: 8),
                             LabelIconsWidget(
                               labels: spot.labels,
                               maxIcons: 4,

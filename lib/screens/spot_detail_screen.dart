@@ -490,7 +490,7 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> with SingleTickerPr
                   // Métadonnées
                   Row(
                     children: [
-                      if (widget.spot.rating != null) ...[
+                      if (widget.spot.rating != null && widget.spot.rating! > 0) ...[
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
@@ -505,6 +505,29 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> with SingleTickerPr
                               Text(
                                 widget.spot.rating!.toStringAsFixed(1),
                                 style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ] else ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.star_outline, color: Colors.grey[600], size: 16),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Aucun avis',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey[600],
+                                ),
                               ),
                             ],
                           ),

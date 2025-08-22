@@ -10,6 +10,7 @@ class SpotData {
   final String? category;
   final List<String>? amenities;
   final List<Map<String, dynamic>>? labels; // Ajout des labels
+  final int? reviewCount;
 
   SpotData({
     required this.id,
@@ -22,6 +23,7 @@ class SpotData {
     this.category,
     this.amenities,
     this.labels,
+    this.reviewCount,
   });
 
   factory SpotData.fromJson(Map<String, dynamic> json) {
