@@ -147,7 +147,8 @@ Stream<List<SpotData>> _spotsStream() {
               lon: spot['long'] as double,
               photoUrl: photos.isNotEmpty ? photos.first['url'] as String : null,
               rating: double.parse(averageRating.toStringAsFixed(2)),
-              reviewCount: reviewCount, // AJOUT DU NOMBRE D'AVIS
+              reviewCount: reviewCount,
+              creatorId: spot['user_id'] as String?, // AJOUT DU CRÉATEUR
               category: spot['category'] as String?,
               amenities: spot['amenities'] != null 
                   ? List<String>.from(spot['amenities'])
@@ -167,7 +168,8 @@ Stream<List<SpotData>> _spotsStream() {
               lon: spot['long'] as double,
               photoUrl: null,
               rating: 0.0,
-              reviewCount: 0, // AJOUT DU NOMBRE D'AVIS (0 en cas d'erreur)
+              reviewCount: 0,
+              creatorId: spot['user_id'] as String?, // AJOUT DU CRÉATEUR
               category: spot['category'] as String?,
               amenities: spot['amenities'] != null 
                   ? List<String>.from(spot['amenities'])

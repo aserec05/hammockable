@@ -11,6 +11,7 @@ class SpotData {
   final List<String>? amenities;
   final List<Map<String, dynamic>>? labels; // Ajout des labels
   final int? reviewCount;
+  final String? creatorId; // NOUVEAU CHAMP
 
   SpotData({
     required this.id,
@@ -21,6 +22,7 @@ class SpotData {
     this.photoUrl,
     this.rating,
     this.category,
+    this.creatorId,
     this.amenities,
     this.labels,
     this.reviewCount,

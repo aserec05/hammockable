@@ -1,3 +1,5 @@
+import 'package:hammockable/widgets/user_avatar.dart';
+
 import '../models/spot_data.dart';
 import '../widgets/rating_comment.dart';
 import 'package:flutter/material.dart';
@@ -486,7 +488,36 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> with SingleTickerPr
                     ),
                   ),
                   const SizedBox(height: 12),
-                  
+                  if (widget.spot.creatorId != null) ...[
+  Row(
+    children: [
+      UserAvatar(
+        userId: widget.spot.creatorId,
+        radius: 12,
+        enableClick: true,
+      ),
+      const SizedBox(width: 6),
+      Container(
+        width: 3,
+        height: 3,
+        decoration: BoxDecoration(
+          color: Colors.grey[400],
+          shape: BoxShape.circle,
+        ),
+      ),
+      const SizedBox(width: 6),
+      Text(
+        'Contributeur',
+        style: TextStyle(
+          color: Colors.grey[500],
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    ],
+  ),
+  const SizedBox(height: 16),
+],
                   // Métadonnées
                   Row(
                     children: [
