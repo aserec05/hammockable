@@ -21,6 +21,12 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> with SingleTickerPr
   bool isLoading = false;
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
+  
+  // Variables pour la galerie de photos
+  List<String> allPhotos = [];
+  bool photosLoading = true;
+  PageController _pageController = PageController();
+  int currentPhotoIndex = 0;
 
   @override
   void initState() {
@@ -42,12 +48,45 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> with SingleTickerPr
 
     // Vérifier si l'utilisateur a déjà liké
     _checkIfLiked();
+    
+    // Charger toutes les photos
+    _loadAllPhotos();
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    _pageController.dispose();
     super.dispose();
+  }
+
+  // Nouvelle méthode pour charger toutes les photos
+  Future<void> _loadAllPhotos() async {
+    try {
+      final response = await Supabase.instance.client
+          .from('photos')
+          .select('url')
+          .eq('spot_id', widget.spot.id)
+          .order('created_at');
+      
+      setState(() {
+        allPhotos = response.map<String>((photo) => photo['url'] as String).toList();
+        // Si il n'y a pas de photos dans la DB mais qu'on a une photo dans le spot
+        if (allPhotos.isEmpty && widget.spot.photoUrl != null && widget.spot.photoUrl!.isNotEmpty) {
+          allPhotos = [widget.spot.photoUrl!];
+        }
+        photosLoading = false;
+      });
+    } catch (e) {
+      print('Erreur lors du chargement des photos: $e');
+      setState(() {
+        // Fallback: utiliser la photo du spot si disponible
+        if (widget.spot.photoUrl != null && widget.spot.photoUrl!.isNotEmpty) {
+          allPhotos = [widget.spot.photoUrl!];
+        }
+        photosLoading = false;
+      });
+    }
   }
 
   Future<void> _checkIfLiked() async {
@@ -149,34 +188,171 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> with SingleTickerPr
     }
   }
 
+  // Widget pour la galerie de photos
+  Widget _buildPhotoGallery() {
+    if (photosLoading) {
+      return Container(
+        height: 300,
+        color: Colors.grey[200],
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (allPhotos.isEmpty) {
+      return Container(
+        height: 300,
+        color: Colors.grey[200],
+        child: const Center(
+          child: Icon(Icons.landscape, size: 100, color: Colors.grey),
+        ),
+      );
+    }
+
+    return Stack(
+      children: [
+        // PageView pour les photos
+        SizedBox(
+          height: 300,
+          child: PageView.builder(
+            controller: _pageController,
+            onPageChanged: (index) {
+              setState(() {
+                currentPhotoIndex = index;
+              });
+            },
+            itemCount: allPhotos.length,
+            itemBuilder: (context, index) {
+              return CachedNetworkImage(
+                imageUrl: allPhotos[index],
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Container(
+                  color: Colors.grey[200],
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+                errorWidget: (context, url, error) => Container(
+                  color: Colors.grey[200],
+                  child: const Icon(Icons.landscape, size: 100),
+                ),
+              );
+            },
+          ),
+        ),
+        
+        // Indicateurs de pages (si plus d'une photo)
+        if (allPhotos.length > 1) ...[
+          // Indicateurs en bas
+          Positioned(
+            bottom: 16,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: allPhotos.asMap().entries.map((entry) {
+                return Container(
+                  width: currentPhotoIndex == entry.key ? 12.0 : 8.0,
+                  height: 8.0,
+                  margin: const EdgeInsets.symmetric(horizontal: 3.0),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(4.0),
+                    color: currentPhotoIndex == entry.key 
+                        ? Colors.white 
+                        : Colors.white.withOpacity(0.4),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          
+          // Compteur en haut à droite
+          Positioned(
+            top: 16,
+            right: 16,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.6),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '${currentPhotoIndex + 1}/${allPhotos.length}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+          
+          // Flèches de navigation (optionnel)
+          if (allPhotos.length > 1) ...[
+            // Flèche gauche
+            if (currentPhotoIndex > 0)
+              Positioned(
+                left: 16,
+                top: 0,
+                bottom: 0,
+                child: Center(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                      onPressed: () {
+                        _pageController.previousPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            
+            // Flèche droite
+            if (currentPhotoIndex < allPhotos.length - 1)
+              Positioned(
+                right: 16,
+                top: 0,
+                bottom: 0,
+                child: Center(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_forward_ios, color: Colors.white),
+                      onPressed: () {
+                        _pageController.nextPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ],
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // App Bar avec image
+          // App Bar avec galerie d'images
           SliverAppBar(
             expandedHeight: 300,
             pinned: true,
             backgroundColor: const Color(0xFF2D5016),
             flexibleSpace: FlexibleSpaceBar(
-              background: widget.spot.photoUrl != null && widget.spot.photoUrl!.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: widget.spot.photoUrl!,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        color: Colors.grey[200],
-                        child: const Center(child: CircularProgressIndicator()),
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        color: Colors.grey[200],
-                        child: const Icon(Icons.landscape, size: 100),
-                      ),
-                    )
-                  : Container(
-                      color: Colors.grey[200],
-                      child: const Icon(Icons.landscape, size: 100),
-                    ),
+              background: _buildPhotoGallery(),
             ),
             leading: Container(
               margin: const EdgeInsets.all(8),
@@ -336,37 +512,37 @@ class _SpotDetailScreenState extends State<SpotDetailScreen> with SingleTickerPr
                     ),
                     const SizedBox(height: 24),
                   ],
-                   // Dans SpotDetailScreen, après les équipements
-if (widget.spot.labels != null && widget.spot.labels!.isNotEmpty) ...[
-  const SizedBox(height: 20),
-  const Text(
-    'Caractéristiques',
-    style: TextStyle(
-      fontSize: 20,
-      fontWeight: FontWeight.bold,
-      color: Colors.black87,
-    ),
-  ),
-  const SizedBox(height: 12),
-  Wrap(
-    spacing: 8,
-    runSpacing: 8,
-    children: widget.spot.labels!.map((label) {
-      return Chip(
-        avatar: Icon(
-          label['icon'] != null 
-              ? IconData(label['icon'], fontFamily: 'MaterialIcons') 
-              : Icons.label,
-          size: 18,
-          color: Theme.of(context).colorScheme.primary,
-        ),
-        label: Text(label['name'] ?? 'Inconnu'),
-        backgroundColor: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.2),
-      );
-    }).toList(),
-  ),
-  const SizedBox(height: 24),
-],
+                   
+                  // Labels/Caractéristiques
+                  if (widget.spot.labels != null && widget.spot.labels!.isNotEmpty) ...[
+                    const Text(
+                      'Caractéristiques',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: widget.spot.labels!.map((label) {
+                        return Chip(
+                          avatar: Icon(
+                            label['icon'] != null 
+                                ? IconData(label['icon'], fontFamily: 'MaterialIcons') 
+                                : Icons.label,
+                            size: 18,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          label: Text(label['name'] ?? 'Inconnu'),
+                          backgroundColor: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.2),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
                  
                   const Text(
                       'Laisser un avis',
@@ -410,6 +586,7 @@ if (widget.spot.labels != null && widget.spot.labels!.isNotEmpty) ...[
                   CommunityReviewsWidget(spotId: widget.spot.id),
 
                   const SizedBox(height: 24),
+                  
                   // Position
                   const Text(
                     'Localisation',
